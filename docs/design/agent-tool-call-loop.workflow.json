@@ -1,0 +1,86 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Agent Tool-Call Workflow",
+    "quality_profile": "showcase",
+    "output": "agent-tool-call-loop.html"
+  },
+  "lanes": [
+    { "id": "user_surface", "label": "User Surface" },
+    { "id": "agent_runtime", "label": "Agent Runtime" },
+    { "id": "policy_boundary", "label": "Policy Boundary" },
+    { "id": "exception_handling", "label": "Exception Handling" },
+    { "id": "tool_execution", "label": "Tool Execution" },
+    { "id": "observability", "label": "Observability" }
+  ],
+  "phases": [
+    { "id": "request", "label": "Request", "fromCol": 0, "toCol": 1 },
+    { "id": "plan_route", "label": "Plan + route", "fromCol": 2, "toCol": 3, "variant": "emphasis" },
+    { "id": "approve_execute", "label": "Approve + execute", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "planning_loop", "label": "Planning loop", "lane": "agent_runtime", "fromCol": 1, "toCol": 2, "variant": "emphasis" },
+    { "id": "approval_gate", "label": "Approval gate", "lane": "policy_boundary", "fromCol": 2, "toCol": 3, "variant": "security" },
+    { "id": "retry_loop", "label": "Retry loop", "lane": "exception_handling", "fromCol": 3, "toCol": 4, "variant": "dashed" },
+    { "id": "evidence_path", "label": "Evidence path", "lane": "observability", "fromCol": 1, "toCol": 2, "variant": "dashed" }
+  ],
+  "mainPath": [
+    "user",
+    "chat",
+    "planner",
+    "router",
+    "approval",
+    "tool",
+    "external",
+    "final"
+  ],
+  "nodes": [
+    { "id": "user", "lane": "user_surface", "col": 0, "type": "external", "label": "User", "sublabel": "asks for work", "width": 132 },
+    { "id": "chat", "lane": "user_surface", "col": 1, "type": "frontend", "label": "Chat Surface", "sublabel": "thread + files", "width": 132 },
+    { "id": "planner", "lane": "agent_runtime", "col": 2, "type": "backend", "label": "Agent Planner", "sublabel": "plan next step", "tag": "context aware", "width": 132 },
+    { "id": "router", "lane": "agent_runtime", "col": 3, "type": "backend", "label": "Tool Router", "sublabel": "choose capability", "width": 132 },
+    { "id": "approval", "lane": "policy_boundary", "col": 3, "type": "security", "label": "Approval Gate", "sublabel": "scope + consent", "tag": "block risky ops", "width": 132 },
+    { "id": "blocked", "lane": "exception_handling", "col": 4, "type": "security", "label": "Blocked", "sublabel": "wait or reject", "width": 132 },
+    { "id": "retry", "lane": "exception_handling", "col": 5, "type": "messagebus", "label": "Retry Path", "sublabel": "revise request", "width": 132 },
+    { "id": "tool", "lane": "tool_execution", "col": 4, "type": "messagebus", "label": "Tool Call", "sublabel": "shell / browser / MCP", "tag": "structured result", "width": 132 },
+    { "id": "external", "lane": "tool_execution", "col": 5, "type": "cloud", "label": "External API", "sublabel": "network service", "width": 132 },
+    { "id": "final", "lane": "user_surface", "col": 5, "type": "backend", "label": "Final Reply", "sublabel": "answer + changes", "width": 132 },
+    { "id": "store", "lane": "observability", "col": 1, "type": "database", "label": "Context Store", "sublabel": "repo + memory", "width": 132 },
+    { "id": "trace", "lane": "observability", "col": 2, "type": "database", "label": "Trace Log", "sublabel": "events + output", "width": 132 }
+  ],
+  "edges": [
+    { "id": "request-chat", "from": "user", "to": "chat", "variant": "default" },
+    { "id": "chat-plan", "from": "chat", "to": "planner", "label": "request", "variant": "emphasis" },
+    { "id": "planner-router", "from": "planner", "to": "router", "variant": "default" },
+    { "id": "route-approval", "from": "router", "to": "approval", "label": "needs approval?", "variant": "security" },
+    { "id": "approval-tool", "from": "approval", "to": "tool", "label": "approved", "variant": "emphasis" },
+    { "id": "approval-blocked", "from": "approval", "to": "blocked", "label": "denied", "variant": "security", "role": "error" },
+    { "id": "blocked-retry", "from": "blocked", "to": "retry", "variant": "dashed", "role": "branch" },
+    { "id": "retry-router", "from": "retry", "to": "router", "label": "rework", "variant": "dashed" },
+    { "id": "tool-external", "from": "tool", "to": "external", "variant": "default" },
+    { "id": "external-final", "from": "external", "to": "final", "variant": "emphasis", "role": "return", "fromSide": "right", "toSide": "right", "route": "outside-right", "width": 1.2 },
+    { "id": "external-trace", "from": "external", "to": "trace", "label": "record result", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "route": "bottom-channel", "labelSegment": 1 },
+    { "id": "store-trace", "from": "store", "to": "trace", "label": "trace + memory", "variant": "dashed" },
+    { "id": "chat-store", "from": "chat", "to": "store", "label": "context", "variant": "dashed" },
+    { "id": "trace-final", "from": "trace", "to": "final", "label": "evidence", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Successful path",
+      "items": [
+        "User request reaches the chat surface and is planned",
+        "Approval clears the route before structured tool execution"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Recovery and evidence",
+      "items": [
+        "Denied work goes to blocked and retry without a final answer",
+        "Tool results flow into trace and context while the answer is delivered"
+      ]
+    }
+  ]
+}

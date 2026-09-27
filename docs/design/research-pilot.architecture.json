@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ResearchPilot Runtime Architecture",
+    "output": "research-pilot-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1200, 700],
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Primary request path",
+        "focus": ["user", "cli", "entrypoint", "agent", "toolExecutor", "tavily"],
+        "note": "Follow the primary prompt through the local reasoning loop into the external evidence path."
+      },
+      {
+        "id": "trust-boundaries",
+        "label": "Trust boundaries",
+        "focus": ["cli", "entrypoint", "agent", "config", "anthropic", "tavily"],
+        "note": "Keep secrets, outbound web calls, and model inference outside the local runtime boundary."
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [40, 80],
+    "cols": 6,
+    "gapX": 70,
+    "gapY": 90,
+    "cellW": 150,
+    "cellH": 90
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "User", "sublabel": "Question", "pos": [40, 370], "size": [120, 60] },
+    { "id": "cli", "type": "frontend", "label": "CLI Surface", "sublabel": "prompt loop", "pos": [210, 370], "size": [140, 60] },
+    { "id": "entrypoint", "type": "backend", "label": "Runtime Entrypoint", "sublabel": "main()", "pos": [390, 370], "size": [170, 68] },
+    { "id": "agent", "type": "backend", "label": "Research Agent", "sublabel": "Claude loop", "tag": "tool-calling planner", "pos": [600, 370], "size": [170, 72] },
+    { "id": "toolExecutor", "type": "backend", "label": "Tool Executor", "sublabel": "Tavily adapter", "pos": [820, 370], "size": [150, 68] },
+    { "id": "contextStore", "type": "database", "label": "Conversation State", "sublabel": "history", "pos": [600, 180], "size": [170, 68] },
+    { "id": "config", "type": "security", "label": "Config + Secrets", "sublabel": "dotenv / env", "pos": [820, 180], "size": [150, 68] },
+    { "id": "anthropic", "type": "cloud", "label": "Anthropic API", "sublabel": "Claude model", "pos": [1010, 500], "size": [150, 68] },
+    { "id": "tavily", "type": "cloud", "label": "Tavily API", "sublabel": "search + extract", "pos": [1010, 180], "size": [150, 68] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Local runtime boundary", "wraps": ["cli", "entrypoint", "agent", "toolExecutor", "contextStore", "config"], "pad": 24 },
+    { "kind": "security-group", "label": "Internet trust boundary", "wraps": ["anthropic", "tavily"], "pad": 18 }
+  ],
+  "connections": [
+    { "id": "question", "from": "user", "to": "cli", "label": "question", "variant": "emphasis" },
+    { "id": "invoke", "from": "cli", "to": "entrypoint", "label": "invoke" },
+    { "id": "run-research", "from": "entrypoint", "to": "agent", "label": "research()", "labelDy": 58 },
+    { "id": "history", "from": "agent", "to": "contextStore", "label": "history", "fromSide": "top", "toSide": "bottom" },
+    { "id": "agent-tool", "from": "agent", "to": "toolExecutor", "label": "tool_use", "variant": "emphasis" },
+    { "id": "tool-web", "from": "toolExecutor", "to": "tavily", "label": "search + extract", "variant": "emphasis", "fromSide": "top", "toSide": "bottom" },
+    { "id": "model-call", "from": "toolExecutor", "to": "anthropic", "label": "LLM call", "variant": "security", "fromSide": "right", "toSide": "left" },
+    { "id": "config-key", "from": "config", "to": "toolExecutor", "label": "env", "variant": "security", "labelDy": 24 }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Primary request path", "items": ["The user enters a question in the CLI loop; the runtime turns it into a research task for the agent.", "The agent decides whether to use the search executor or produce a final answer, with tool results flowing back into the reasoning loop."] },
+    { "dot": "emerald", "title": "Runtime responsibilities", "items": ["The agent keeps message history so the model can ground each next step in earlier context.", "The executor adapts external search and extraction calls before returning streamlined evidence to the agent."] },
+    { "dot": "rose", "title": "Trust and secrets", "items": ["Config loads required API keys before the runtime creates its clients.", "Anthropic and Tavily sit outside the local runtime boundary, so the diagram keeps the internet and secret boundary explicit."] }
+  ]
+}
